@@ -14,11 +14,50 @@ export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) =>
   const [showPin, setShowPin] = useState<boolean>(false);
   const [error, setError] = useState<boolean>(false);
   const [shake, setShake] = useState<boolean>(false);
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [lockoutSeconds, setLockoutSeconds] = useState<number>(0);
 
   const targetPin = settings.securityPin || "1234";
 
+  // Check persistent lockout on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedLockout = localStorage.getItem("pos_lockout_until");
+      if (storedLockout) {
+        const remaining = Math.ceil((parseInt(storedLockout, 10) - Date.now()) / 1000);
+        if (remaining > 0) {
+          setLockoutSeconds(remaining);
+        } else {
+          localStorage.removeItem("pos_lockout_until");
+        }
+      }
+    }
+  }, []);
+
+  // Countdown timer when locked out
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("pos_lockout_until");
+          }
+          setFailedAttempts(0);
+          setError(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
+
+  const isLockedOut = lockoutSeconds > 0;
+
   // Handle number click
   const handleDigit = (digit: string) => {
+    if (isLockedOut) return;
     if (pin.length < 4) {
       const nextPin = pin + digit;
       setPin(nextPin);
@@ -31,11 +70,13 @@ export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) =>
   };
 
   const handleBackspace = () => {
+    if (isLockedOut) return;
     setPin((prev) => prev.slice(0, -1));
     setError(false);
   };
 
   const handleClear = () => {
+    if (isLockedOut) return;
     setPin("");
     setError(false);
   };
@@ -44,11 +85,25 @@ export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) =>
     if (candidate === targetPin) {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("pos_session_unlocked", "true");
+        localStorage.removeItem("pos_lockout_until");
       }
+      setFailedAttempts(0);
       onUnlock();
     } else {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
       setError(true);
       setShake(true);
+
+      if (newAttempts >= 5) {
+        const lockoutDurationMs = 60000;
+        const until = Date.now() + lockoutDurationMs;
+        if (typeof window !== "undefined") {
+          localStorage.setItem("pos_lockout_until", until.toString());
+        }
+        setLockoutSeconds(60);
+      }
+
       setTimeout(() => {
         setPin("");
         setShake(false);
@@ -123,11 +178,16 @@ export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) =>
           </button>
         </div>
 
-        {error && (
+        {isLockedOut ? (
+          <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center justify-center gap-2 animate-pulse">
+            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Security Lockout: <strong>{lockoutSeconds}s</strong> remaining</span>
+          </div>
+        ) : error ? (
           <p className="text-xs text-red-400 font-semibold mb-4 animate-pulse">
-            Incorrect PIN. Please try again.
+            Incorrect PIN ({failedAttempts}/5 attempts). Please try again.
           </p>
-        )}
+        ) : null}
 
         {/* Numeric Onscreen Keypad */}
         <div className="grid grid-cols-3 gap-2.5 max-w-[260px] mx-auto">
@@ -135,30 +195,42 @@ export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) =>
             <button
               key={num}
               type="button"
+              disabled={isLockedOut}
               onClick={() => handleDigit(num)}
-              className="h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-xl font-bold text-white border border-slate-700/60 transition shadow-sm"
+              className={`h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-xl font-bold text-white border border-slate-700/60 transition shadow-sm ${
+                isLockedOut ? "opacity-30 cursor-not-allowed" : ""
+              }`}
             >
               {num}
             </button>
           ))}
           <button
             type="button"
+            disabled={isLockedOut}
             onClick={handleClear}
-            className="h-14 rounded-2xl bg-slate-800/40 hover:bg-slate-800 text-xs font-semibold text-slate-400 border border-slate-700/30 transition active:scale-95 uppercase tracking-wider"
+            className={`h-14 rounded-2xl bg-slate-800/40 hover:bg-slate-800 text-xs font-semibold text-slate-400 border border-slate-700/30 transition active:scale-95 uppercase tracking-wider ${
+              isLockedOut ? "opacity-30 cursor-not-allowed" : ""
+            }`}
           >
             Clear
           </button>
           <button
             type="button"
+            disabled={isLockedOut}
             onClick={() => handleDigit("0")}
-            className="h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-xl font-bold text-white border border-slate-700/60 transition shadow-sm"
+            className={`h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-xl font-bold text-white border border-slate-700/60 transition shadow-sm ${
+              isLockedOut ? "opacity-30 cursor-not-allowed" : ""
+            }`}
           >
             0
           </button>
           <button
             type="button"
+            disabled={isLockedOut}
             onClick={handleBackspace}
-            className="h-14 rounded-2xl bg-slate-800/40 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/30 transition active:scale-95 flex items-center justify-center"
+            className={`h-14 rounded-2xl bg-slate-800/40 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/30 transition active:scale-95 flex items-center justify-center ${
+              isLockedOut ? "opacity-30 cursor-not-allowed" : ""
+            }`}
             title="Backspace"
           >
             <Delete className="w-5 h-5" />
