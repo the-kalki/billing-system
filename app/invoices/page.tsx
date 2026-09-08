@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Customer, Invoice } from "@/types/billing";
-import { getStoredInvoices, getStoredCustomers, markInvoiceAsPaidInStorage } from "@/lib/storage";
+import { Invoice } from "@/types/billing";
+import { getStoredInvoices, markInvoiceAsPaidInStorage } from "@/lib/storage";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { 
   FileText, 
@@ -19,7 +19,6 @@ import {
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
   const [methodFilter, setMethodFilter] = useState<"all" | "cash" | "upi" | "credit">("all");
@@ -27,7 +26,6 @@ export default function InvoicesPage() {
   useEffect(() => {
     const load = () => {
       setInvoices(getStoredInvoices());
-      setCustomers(getStoredCustomers());
     };
     load();
 
@@ -74,8 +72,6 @@ export default function InvoicesPage() {
     .reduce((sum, inv) => sum + inv.grandTotal, 0);
   const unpaidInvoices = invoices.filter((inv) => inv.paymentStatus === "unpaid");
   const totalPendingInvoices = unpaidInvoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
-  const totalKhataDue = customers.reduce((sum, c) => sum + c.creditBalance, 0);
-  const customersWithDue = customers.filter((c) => c.creditBalance > 0).length;
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 w-full">
@@ -89,7 +85,6 @@ export default function InvoicesPage() {
             View, search, reprint, and track customer payments
           </p>
         </div>
-
         <Link
           href="/pos"
           className="inline-flex items-center space-x-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-xs transition shrink-0"
@@ -99,8 +94,8 @@ export default function InvoicesPage() {
         </Link>
       </div>
 
-      {/* Summary KPI Cards - 100% Synced Across Dashboard, Invoices & Khata */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Summary KPI Cards - Invoices & Collections */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
             Total Sales Invoiced
@@ -136,26 +131,6 @@ export default function InvoicesPage() {
             {unpaidInvoices.length === 0 ? "All current bills settled" : `${unpaidInvoices.length} bill(s) pending payment`}
           </span>
         </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider block">
-              Customer Khata (Udhar)
-            </span>
-            <Link
-              href="/customers"
-              className="text-[11px] font-bold text-teal-700 hover:underline"
-            >
-              View Khata →
-            </Link>
-          </div>
-          <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">
-            {formatCurrency(totalKhataDue)}
-          </div>
-          <span className="text-xs text-slate-400 mt-1 block">
-            Across {customersWithDue} customer{customersWithDue === 1 ? "" : "s"} with dues
-          </span>
-        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -164,7 +139,8 @@ export default function InvoicesPage() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search invoice #, customer, or mobile..."
+            aria-label="Search invoices"
+            placeholder="Search invoice #, customer, or mobile…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
