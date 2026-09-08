@@ -55,6 +55,13 @@ export const Navbar: React.FC = () => {
     // ⚡ Activate Supabase Realtime WebSocket for instantaneous cross-device sync
     const unsubscribeRealtime = subscribeToCloudRealtime();
 
+    // 🔄 Background periodic fallback poll (every 15s) when window is active
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        syncAllWithCloud();
+      }
+    }, 15000);
+
     // Re-sync whenever user focuses window or wakes up phone screen
     const onFocus = () => triggerSync();
     const onVisibilityChange = () => {
@@ -69,6 +76,7 @@ export const Navbar: React.FC = () => {
     window.addEventListener("billing_cloud_synced", onCloudSynced);
 
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("billing_cloud_synced", onCloudSynced);

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Invoice } from "@/types/billing";
-import { getStoredInvoices } from "@/lib/storage";
+import { Customer, Invoice } from "@/types/billing";
+import { getStoredInvoices, getStoredCustomers, markInvoiceAsPaidInStorage } from "@/lib/storage";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { 
   FileText, 
@@ -19,6 +19,7 @@ import {
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
   const [methodFilter, setMethodFilter] = useState<"all" | "cash" | "upi" | "credit">("all");
@@ -26,6 +27,7 @@ export default function InvoicesPage() {
   useEffect(() => {
     const load = () => {
       setInvoices(getStoredInvoices());
+      setCustomers(getStoredCustomers());
     };
     load();
 
@@ -40,6 +42,15 @@ export default function InvoicesPage() {
       window.removeEventListener("storage", handleSync);
     };
   }, []);
+
+  const handleMarkPaid = async (e: React.MouseEvent, inv: Invoice) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm(`Mark Invoice #${inv.invoiceNumber} (${inv.customerName}) as PAID in Cash/UPI?`)) {
+      await markInvoiceAsPaidInStorage(inv.id);
+      setInvoices(getStoredInvoices());
+    }
+  };
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
@@ -61,9 +72,10 @@ export default function InvoicesPage() {
   const totalCollected = invoices
     .filter((inv) => inv.paymentStatus === "paid")
     .reduce((sum, inv) => sum + inv.grandTotal, 0);
-  const totalPendingCredit = invoices
-    .filter((inv) => inv.paymentStatus === "unpaid")
-    .reduce((sum, inv) => sum + inv.grandTotal, 0);
+  const unpaidInvoices = invoices.filter((inv) => inv.paymentStatus === "unpaid");
+  const totalPendingInvoices = unpaidInvoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+  const totalKhataDue = customers.reduce((sum, c) => sum + c.creditBalance, 0);
+  const customersWithDue = customers.filter((c) => c.creditBalance > 0).length;
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 w-full">
@@ -87,8 +99,8 @@ export default function InvoicesPage() {
         </Link>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Summary KPI Cards - 100% Synced Across Dashboard, Invoices & Khata */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
             Total Sales Invoiced
@@ -115,13 +127,33 @@ export default function InvoicesPage() {
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider block">
-            Pending Credit (Udhar)
+            Unpaid Bill Slips
           </span>
           <div className="text-2xl font-extrabold text-amber-700 mt-1 tabular-nums">
-            {formatCurrency(totalPendingCredit)}
+            {formatCurrency(totalPendingInvoices)}
           </div>
           <span className="text-xs text-slate-400 mt-1 block">
-            To be collected in Khata
+            {unpaidInvoices.length === 0 ? "All current bills settled" : `${unpaidInvoices.length} bill(s) pending payment`}
+          </span>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider block">
+              Customer Khata (Udhar)
+            </span>
+            <Link
+              href="/customers"
+              className="text-[11px] font-bold text-teal-700 hover:underline"
+            >
+              View Khata →
+            </Link>
+          </div>
+          <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">
+            {formatCurrency(totalKhataDue)}
+          </div>
+          <span className="text-xs text-slate-400 mt-1 block">
+            Across {customersWithDue} customer{customersWithDue === 1 ? "" : "s"} with dues
           </span>
         </div>
       </div>
@@ -236,14 +268,23 @@ export default function InvoicesPage() {
                 </div>
               </div>
 
-              <div className="pt-1">
+              <div className="pt-1 flex gap-2">
                 <Link
                   href={`/invoices/${inv.id}`}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition"
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>View / Print Invoice Slip</span>
+                  <span>View / Print</span>
                 </Link>
+                {inv.paymentStatus === "unpaid" && (
+                  <button
+                    onClick={(e) => handleMarkPaid(e, inv)}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Mark Paid</span>
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -314,7 +355,16 @@ export default function InvoicesPage() {
                         {inv.paymentStatus}
                       </span>
                     </td>
-                    <td className="p-3.5 text-right whitespace-nowrap">
+                    <td className="p-3.5 text-right whitespace-nowrap space-x-2">
+                      {inv.paymentStatus === "unpaid" && (
+                        <button
+                          onClick={(e) => handleMarkPaid(e, inv)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold transition"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Mark Paid</span>
+                        </button>
+                      )}
                       <Link
                         href={`/invoices/${inv.id}`}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold transition"

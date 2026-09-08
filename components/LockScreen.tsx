@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, Unlock, Delete, ShieldAlert, Store } from "lucide-react";
+import { Lock, Unlock, Delete, ShieldAlert, Store, Eye, EyeOff } from "lucide-react";
 import { BusinessSettings } from "@/types/billing";
 
 interface LockScreenProps {
@@ -11,6 +11,7 @@ interface LockScreenProps {
 
 export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) => {
   const [pin, setPin] = useState<string>("");
+  const [showPin, setShowPin] = useState<boolean>(false);
   const [error, setError] = useState<boolean>(false);
   const [shake, setShake] = useState<boolean>(false);
 
@@ -90,23 +91,36 @@ export const LockScreen: React.FC<LockScreenProps> = ({ settings, onUnlock }) =>
           Terminal Locked • Enter 4-Digit Store PIN
         </p>
 
-        {/* 4-PIN Indicators */}
-        <div className="flex justify-center items-center gap-4 mb-6">
-          {[0, 1, 2, 3].map((idx) => {
-            const isFilled = pin.length > idx;
-            return (
-              <div
-                key={idx}
-                className={`w-4 h-4 rounded-full transition-all duration-150 ${
-                  error
-                    ? "bg-red-500 shadow-lg shadow-red-500/50 scale-110"
-                    : isFilled
-                    ? "bg-teal-400 shadow-md shadow-teal-500/50 scale-125"
-                    : "bg-slate-700/60 border border-slate-600"
-                }`}
-              />
-            );
-          })}
+        {/* 4-PIN Indicators with Eye Toggle */}
+        <div className="flex justify-center items-center gap-2 mb-6">
+          <div className="flex items-center gap-2.5">
+            {[0, 1, 2, 3].map((idx) => {
+              const isFilled = pin.length > idx;
+              const char = pin[idx];
+              return (
+                <div
+                  key={idx}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-mono font-bold text-lg transition-all duration-150 ${
+                    error
+                      ? "bg-red-500/20 text-red-400 border border-red-500 shadow-lg shadow-red-500/40 scale-105"
+                      : isFilled
+                      ? "bg-teal-500/20 text-teal-300 border border-teal-500 shadow-md shadow-teal-500/30"
+                      : "bg-slate-800/80 border border-slate-700 text-slate-500"
+                  }`}
+                >
+                  {isFilled ? (showPin ? char : "•") : ""}
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPin(!showPin)}
+            className="p-2 text-slate-400 hover:text-slate-200 transition rounded-lg hover:bg-slate-800 ml-1"
+            title={showPin ? "Hide PIN" : "Show PIN"}
+          >
+            {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
         </div>
 
         {error && (

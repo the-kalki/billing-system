@@ -151,7 +151,7 @@ export const INITIAL_CUSTOMERS: Customer[] = [
     address: "H-42, Vikas Puri, New Delhi",
     state: "Delhi",
     gstin: "07BBLPK1234F1Z8",
-    creditBalance: 1250, // Udhar balance
+    creditBalance: 0,
     createdAt: new Date().toISOString(),
   },
   {
@@ -170,7 +170,7 @@ export const INITIAL_CUSTOMERS: Customer[] = [
     address: "Shop 4, Karol Bagh, New Delhi",
     state: "Delhi",
     gstin: "07AAPFV9876E1Z1",
-    creditBalance: 3400,
+    creditBalance: 882, // Matches unpaid bill #INV-2026-0102
     createdAt: new Date().toISOString(),
   },
   {
@@ -348,14 +348,6 @@ export const INITIAL_INVOICES: Invoice[] = [
 export const INITIAL_TRANSACTIONS: CustomerTransaction[] = [
   {
     id: "tx-1",
-    customerId: "cust-1",
-    date: new Date(Date.now() - 86400000 * 5).toISOString(),
-    type: "debit",
-    amount: 1250,
-    description: "Previous balance carried forward",
-  },
-  {
-    id: "tx-2",
     customerId: "cust-3",
     invoiceId: "inv-102",
     date: new Date(Date.now() - 86400000).toISOString(),
@@ -369,6 +361,7 @@ import {
   fetchProductsFromCloud, 
   syncAllProductsToCloud,
   fetchCustomersFromCloud,
+  syncCustomerToCloud,
   syncAllCustomersToCloud,
   fetchInvoicesFromCloud,
   syncInvoiceToCloud,
@@ -414,6 +407,7 @@ export function saveStoredProducts(products: Product[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
   syncAllProductsToCloud(products);
+  window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
 }
 
 export function removeProduct(id: string) {
@@ -421,6 +415,7 @@ export function removeProduct(id: string) {
   const current = getStoredProducts().filter((p) => p.id !== id);
   localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(current));
   deleteProductFromCloud(id);
+  window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
 }
 
 export function getStoredCustomers(): Customer[] {
@@ -437,6 +432,7 @@ export function saveStoredCustomers(customers: Customer[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(customers));
   syncAllCustomersToCloud(customers);
+  window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
 }
 
 export function removeCustomer(id: string) {
@@ -444,6 +440,7 @@ export function removeCustomer(id: string) {
   const current = getStoredCustomers().filter((c) => c.id !== id);
   localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(current));
   deleteCustomerFromCloud(id);
+  window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
 }
 
 export function getStoredInvoices(): Invoice[] {
@@ -459,10 +456,10 @@ export function getStoredInvoices(): Invoice[] {
 export function saveStoredInvoices(invoices: Invoice[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEYS.INVOICES, JSON.stringify(invoices));
-  // Sync the latest invoice to cloud
   if (invoices.length > 0) {
     syncInvoiceToCloud(invoices[0]);
   }
+  window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
 }
 
 export function getStoredTransactions(): CustomerTransaction[] {
@@ -481,6 +478,82 @@ export function saveStoredTransactions(transactions: CustomerTransaction[]) {
   if (transactions.length > 0) {
     syncTransactionToCloud(transactions[0]);
   }
+  window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
+}
+
+/**
+ * Marks an existing invoice as PAID across local storage and Supabase cloud.
+ * Automatically decreases customer credit balance, logs repayment in Khata ledger,
+ * and broadcasts update event for all connected components and devices.
+ */
+export async function markInvoiceAsPaidInStorage(invoiceId: string): Promise<Invoice | null> {
+  if (typeof window === "undefined") return null;
+
+  const currentInvoices = getStoredInvoices();
+  const targetInvoice = currentInvoices.find((inv) => inv.id === invoiceId);
+  if (!targetInvoice || targetInvoice.paymentStatus === "paid") return null;
+
+  const updatedInvoice: Invoice = {
+    ...targetInvoice,
+    paymentStatus: "paid",
+    paidAmount: targetInvoice.grandTotal,
+  };
+
+  const updatedInvoices = currentInvoices.map((inv) =>
+    inv.id === targetInvoice.id ? updatedInvoice : inv
+  );
+  localStorage.setItem(KEYS.INVOICES, JSON.stringify(updatedInvoices));
+
+  let targetCustomer: Customer | undefined;
+  let newTx: CustomerTransaction | undefined;
+
+  if (targetInvoice.customerId) {
+    const currentCustomers = getStoredCustomers();
+    const updatedCustomers = currentCustomers.map((c) => {
+      if (c.id === targetInvoice.customerId) {
+        targetCustomer = {
+          ...c,
+          creditBalance: Math.max(0, c.creditBalance - targetInvoice.grandTotal),
+        };
+        return targetCustomer;
+      }
+      return c;
+    });
+    localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
+
+    const currentTransactions = getStoredTransactions();
+    newTx = {
+      id: "tx-" + Date.now(),
+      customerId: targetInvoice.customerId,
+      invoiceId: targetInvoice.id,
+      date: new Date().toISOString(),
+      type: "credit" as const,
+      amount: targetInvoice.grandTotal,
+      description: `Paid Bill #${targetInvoice.invoiceNumber}`,
+    };
+    const updatedTransactions = [newTx, ...currentTransactions];
+    localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(updatedTransactions));
+  }
+
+  // Notify current tab immediately
+  window.dispatchEvent(
+    new CustomEvent("billing_cloud_synced", {
+      detail: { source: "mark_invoice_paid", invoiceId: updatedInvoice.id },
+    })
+  );
+
+  // Sync to Supabase Cloud so all devices (laptop, tablet, phone) update instantaneously
+  try {
+    await Promise.allSettled([
+      syncInvoiceToCloud(updatedInvoice),
+      targetCustomer ? syncCustomerToCloud(targetCustomer) : Promise.resolve(),
+      newTx ? syncTransactionToCloud(newTx) : Promise.resolve(),
+    ]);
+  } catch (err) {
+    console.warn("Error syncing invoice payment to cloud:", err);
+  }
+
+  return updatedInvoice;
 }
 
 /**
@@ -514,7 +587,7 @@ export async function syncAllWithCloud(): Promise<boolean> {
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify(cloudSettings));
     }
 
-    // Broadcast update event so all open views (POS, Products, Invoices) update immediately
+    // Broadcast update event so all open views (POS, Dashboard, Khata, Invoices) update immediately
     window.dispatchEvent(
       new CustomEvent("billing_cloud_synced", {
         detail: {
@@ -540,28 +613,50 @@ let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
 /**
  * Connects to Supabase Realtime WebSocket to listen for changes
- * across all tables. Whenever ANY device completes a checkout, updates stock,
- * or adds a customer, this instantly triggers syncAllWithCloud() on all connected devices
- * without requiring the user to refresh the page.
+ * across all tables. Whenever ANY device completes a checkout, marks bill as paid,
+ * updates stock, or logs a Khata transaction, this instantly triggers syncAllWithCloud()
+ * on all connected devices without requiring the user to refresh the page.
  */
 export function subscribeToCloudRealtime(): () => void {
   if (typeof window === "undefined" || !supabase) return () => {};
   if (realtimeChannel) return () => {};
 
   try {
+    const handleDbChange = (table: string, eventType: string) => {
+      console.log(`⚡ Instant cloud change received via WebSocket: ${table} (${eventType})`);
+      syncAllWithCloud();
+    };
+
     realtimeChannel = supabase
       .channel("public-db-realtime-sync")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public" },
-        (payload) => {
-          console.log("⚡ Instant cloud change received via WebSocket:", payload.table, payload.eventType);
-          syncAllWithCloud();
-        }
+        { event: "*", schema: "public", table: "invoices" },
+        (payload) => handleDbChange("invoices", payload.eventType)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "customers" },
+        (payload) => handleDbChange("customers", payload.eventType)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "customer_transactions" },
+        (payload) => handleDbChange("customer_transactions", payload.eventType)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        (payload) => handleDbChange("products", payload.eventType)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "business_settings" },
+        (payload) => handleDbChange("business_settings", payload.eventType)
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          console.log("🟢 Supabase Realtime WebSocket connected. Instant live sync active.");
+          console.log("🟢 Supabase Realtime WebSocket connected. Multi-table instant live sync active.");
         }
       });
 

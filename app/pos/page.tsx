@@ -26,7 +26,9 @@ import {
   fetchProductsFromCloud, 
   syncInvoiceToCloud, 
   syncAllProductsToCloud, 
-  syncSettingsToCloud 
+  syncSettingsToCloud,
+  syncAllCustomersToCloud,
+  syncTransactionToCloud
 } from "@/lib/supabaseSync";
 import { calculateItemAmounts, calculateInvoiceTotals } from "@/lib/calculations";
 import { ProductPicker } from "@/components/pos/ProductPicker";
@@ -296,9 +298,11 @@ export default function PosPage() {
     saveStoredProducts(updatedProducts);
 
     // 5. Update Customer Khata / Credit Ledger if credit sale
+    let updatedCustomers = customers;
+    let newTx: any = null;
     if (method === "credit" && selectedCustomer) {
       const currentCustomers = getStoredCustomers();
-      const updatedCustomers = currentCustomers.map((c) => {
+      updatedCustomers = currentCustomers.map((c) => {
         if (c.id === selectedCustomer.id) {
           return {
             ...c,
@@ -312,7 +316,7 @@ export default function PosPage() {
 
       // Record transaction
       const currentTransactions = getStoredTransactions();
-      const newTx = {
+      newTx = {
         id: "tx-" + Date.now(),
         customerId: selectedCustomer.id,
         invoiceId: newInvoice.id,
@@ -336,12 +340,14 @@ export default function PosPage() {
     setSettings(updatedSettings);
     saveStoredSettings(updatedSettings);
 
-    // Synchronously ensure Cloud DB receives new invoice, stock, and settings before navigation
+    // Synchronously ensure Cloud DB receives new invoice, stock, customer credit, and settings before navigation
     try {
       await Promise.allSettled([
         syncInvoiceToCloud(newInvoice),
         syncAllProductsToCloud(updatedProducts),
-        syncSettingsToCloud(updatedSettings)
+        syncSettingsToCloud(updatedSettings),
+        method === "credit" ? syncAllCustomersToCloud(updatedCustomers) : Promise.resolve(),
+        newTx ? syncTransactionToCloud(newTx) : Promise.resolve(),
       ]);
     } catch (e) {
       console.warn("Cloud push error:", e);

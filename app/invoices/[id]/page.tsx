@@ -5,13 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { BusinessSettings, Customer, Invoice } from "@/types/billing";
 import { 
-  getStoredCustomers, 
   getStoredInvoices, 
   getStoredSettings, 
-  saveStoredCustomers, 
-  saveStoredInvoices,
-  saveStoredTransactions,
-  getStoredTransactions
+  markInvoiceAsPaidInStorage
 } from "@/lib/storage";
 import { A4TaxInvoice } from "@/components/invoice/A4TaxInvoice";
 import { ThermalReceipt } from "@/components/invoice/ThermalReceipt";
@@ -35,62 +31,37 @@ export default function InvoiceDetailPage() {
   const [viewFormat, setViewFormat] = useState<"a4" | "thermal">("a4"); // A4 default as requested
 
   useEffect(() => {
-    const invoices = getStoredInvoices();
-    const found = invoices.find((inv) => inv.id === id || inv.invoiceNumber === id);
-    if (found) {
-      setInvoice(found);
-    }
-    setSettings(getStoredSettings());
+    const reloadInvoice = () => {
+      const invoices = getStoredInvoices();
+      const found = invoices.find((inv) => inv.id === id || inv.invoiceNumber === id);
+      if (found) {
+        setInvoice(found);
+      }
+      setSettings(getStoredSettings());
+    };
+
+    reloadInvoice();
+
+    window.addEventListener("billing_cloud_synced", reloadInvoice);
+    window.addEventListener("focus", reloadInvoice);
+
+    return () => {
+      window.removeEventListener("billing_cloud_synced", reloadInvoice);
+      window.removeEventListener("focus", reloadInvoice);
+    };
   }, [id]);
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleMarkAsPaid = () => {
+  const handleMarkAsPaid = async () => {
     if (!invoice || invoice.paymentStatus === "paid") return;
 
     if (confirm(`Mark Invoice #${invoice.invoiceNumber} as PAID in Cash/UPI?`)) {
-      const updatedInvoice: Invoice = {
-        ...invoice,
-        paymentStatus: "paid",
-        paidAmount: invoice.grandTotal,
-      };
-
-      // 1. Update Invoices
-      const currentInvoices = getStoredInvoices();
-      const updatedInvoices = currentInvoices.map((inv) =>
-        inv.id === invoice.id ? updatedInvoice : inv
-      );
-      saveStoredInvoices(updatedInvoices);
-      setInvoice(updatedInvoice);
-
-      // 2. If it was credit and attached to a customer, reduce customer credit balance
-      if (invoice.customerId) {
-        const currentCustomers = getStoredCustomers();
-        const updatedCustomers = currentCustomers.map((c) => {
-          if (c.id === invoice.customerId) {
-            return {
-              ...c,
-              creditBalance: Math.max(0, c.creditBalance - invoice.grandTotal),
-            };
-          }
-          return c;
-        });
-        saveStoredCustomers(updatedCustomers);
-
-        // Record credit repayment transaction
-        const currentTransactions = getStoredTransactions();
-        const newTx = {
-          id: "tx-" + Date.now(),
-          customerId: invoice.customerId,
-          invoiceId: invoice.id,
-          date: new Date().toISOString(),
-          type: "credit" as const,
-          amount: invoice.grandTotal,
-          description: `Paid Bill #${invoice.invoiceNumber}`,
-        };
-        saveStoredTransactions([newTx, ...currentTransactions]);
+      const updated = await markInvoiceAsPaidInStorage(invoice.id);
+      if (updated) {
+        setInvoice(updated);
       }
     }
   };

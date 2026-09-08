@@ -6,7 +6,8 @@ import {
   getStoredInvoices, 
   getStoredProducts, 
   getStoredCustomers, 
-  getStoredSettings 
+  getStoredSettings,
+  syncAllWithCloud
 } from "@/lib/storage";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { Invoice, Product, Customer, BusinessSettings } from "@/types/billing";
@@ -31,10 +32,32 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
 
   useEffect(() => {
-    setInvoices(getStoredInvoices());
-    setProducts(getStoredProducts());
-    setCustomers(getStoredCustomers());
-    setSettings(getStoredSettings());
+    const refreshData = () => {
+      setInvoices(getStoredInvoices());
+      setProducts(getStoredProducts());
+      setCustomers(getStoredCustomers());
+      setSettings(getStoredSettings());
+    };
+
+    refreshData();
+
+    // Trigger cloud sync in background on mount
+    syncAllWithCloud().then(() => refreshData());
+
+    window.addEventListener("billing_cloud_synced", refreshData);
+    window.addEventListener("focus", refreshData);
+    window.addEventListener("storage", refreshData);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshData();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("billing_cloud_synced", refreshData);
+      window.removeEventListener("focus", refreshData);
+      window.removeEventListener("storage", refreshData);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const totalSales = invoices.reduce((acc, inv) => acc + inv.grandTotal, 0);

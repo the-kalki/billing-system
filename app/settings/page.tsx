@@ -16,6 +16,7 @@ import {
   saveStoredTransactions,
   syncAllWithCloud
 } from "@/lib/storage";
+import { resetCloudDatabase } from "@/lib/supabaseSync";
 import { 
   Settings, 
   Save, 
@@ -31,13 +32,16 @@ import {
   Lock,
   ShieldCheck,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings>(DEFAULT_SETTINGS);
   const [isSaved, setIsSaved] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showPin, setShowPin] = useState(false);
 
   useEffect(() => {
     setSettings(getStoredSettings());
@@ -57,20 +61,38 @@ export default function SettingsPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (settings.isLockEnabled && settings.securityPin && settings.securityPin.length !== 4) {
+      alert("Terminal Security PIN must be exactly 4 digits (e.g. 1234).");
+      return;
+    }
     saveStoredSettings(settings);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
 
-  const handleResetDemoData = () => {
-    if (confirm("Reset all products, customers, and sample invoices back to fresh demo state?")) {
+  const handleResetDemoData = async () => {
+    if (confirm("Reset all products, customers, and sample invoices back to fresh demo state? This will also reset the Cloud Database so all devices stay in sync.")) {
       saveStoredProducts(INITIAL_PRODUCTS);
       saveStoredCustomers(INITIAL_CUSTOMERS);
       saveStoredInvoices(INITIAL_INVOICES);
       saveStoredTransactions(INITIAL_TRANSACTIONS);
       saveStoredSettings(DEFAULT_SETTINGS);
       setSettings(DEFAULT_SETTINGS);
-      alert("Sample data restored successfully!");
+
+      try {
+        await resetCloudDatabase(
+          INITIAL_PRODUCTS,
+          INITIAL_CUSTOMERS,
+          INITIAL_INVOICES,
+          INITIAL_TRANSACTIONS,
+          DEFAULT_SETTINGS
+        );
+      } catch (err) {
+        console.warn("Cloud reset error:", err);
+      }
+
+      window.dispatchEvent(new CustomEvent("billing_cloud_synced"));
+      alert("Sample demo data restored successfully across local storage and Supabase Cloud!");
     }
   };
 
@@ -421,20 +443,30 @@ export default function SettingsPage() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 4-Digit Security PIN <span className="text-red-500">*</span>
               </label>
-              <input
-                type="password"
-                maxLength={4}
-                pattern="[0-9]{4}"
-                placeholder="1234"
-                value={settings.securityPin || "1234"}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, "").slice(0, 4);
-                  setSettings({ ...settings, securityPin: val });
-                }}
-                className="w-full px-3 py-2 text-lg font-mono font-bold tracking-widest border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={showPin ? "text" : "password"}
+                  maxLength={4}
+                  pattern="[0-9]{4}"
+                  placeholder="Enter 4 digits"
+                  value={settings.securityPin ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setSettings({ ...settings, securityPin: val });
+                  }}
+                  className="w-full pl-3 pr-11 py-2 text-lg font-mono font-bold tracking-widest border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-700 transition rounded-md hover:bg-slate-100"
+                  title={showPin ? "Hide PIN" : "Show PIN"}
+                >
+                  {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
               <span className="text-[11px] text-slate-400 mt-1 block">
-                Must be 4 digits (e.g. 1234)
+                Must be 4 digits (e.g. 1234). Tap eye to show/hide.
               </span>
             </div>
             <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs text-slate-600 space-y-1">

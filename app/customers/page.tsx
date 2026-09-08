@@ -9,6 +9,7 @@ import {
   getStoredTransactions, 
   saveStoredTransactions 
 } from "@/lib/storage";
+import { syncCustomerToCloud, syncTransactionToCloud } from "@/lib/supabaseSync";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { 
   Users, 
@@ -138,7 +139,7 @@ export default function CustomersPage() {
   };
 
   // Record Payment in Khata
-  const handleRecordPayment = (e: React.FormEvent) => {
+  const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeKhataCustomer) return;
     const amt = parseFloat(paymentAmount) || 0;
@@ -149,8 +150,12 @@ export default function CustomersPage() {
 
     // 1. Update Customer Credit Balance
     const newBalance = Math.max(0, activeKhataCustomer.creditBalance - amt);
+    const updatedCustomer: Customer = {
+      ...activeKhataCustomer,
+      creditBalance: newBalance,
+    };
     const updatedCustomers = customers.map((c) =>
-      c.id === activeKhataCustomer.id ? { ...c, creditBalance: newBalance } : c
+      c.id === activeKhataCustomer.id ? updatedCustomer : c
     );
     setCustomers(updatedCustomers);
     saveStoredCustomers(updatedCustomers);
@@ -169,12 +174,15 @@ export default function CustomersPage() {
     saveStoredTransactions(updatedTx);
 
     // Update active modal customer
-    setActiveKhataCustomer({
-      ...activeKhataCustomer,
-      creditBalance: newBalance,
-    });
+    setActiveKhataCustomer(updatedCustomer);
     setIsPaymentModalOpen(false);
     setPaymentAmount("");
+
+    // 3. Immediately sync to cloud
+    await Promise.allSettled([
+      syncCustomerToCloud(updatedCustomer),
+      syncTransactionToCloud(newTx),
+    ]);
   };
 
   const filteredCustomers = customers.filter(

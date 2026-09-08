@@ -414,3 +414,40 @@ export async function syncSettingsToCloud(s: BusinessSettings): Promise<void> {
     console.warn("Supabase syncSettings error:", err);
   }
 }
+
+/**
+ * Resets the Supabase cloud database to fresh demo state.
+ * Cleans dynamic records and re-seeds consistent demo data.
+ */
+export async function resetCloudDatabase(
+  products: Product[],
+  customers: Customer[],
+  invoices: Invoice[],
+  transactions: CustomerTransaction[],
+  settings: BusinessSettings
+): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    // Delete existing records
+    await supabase.from("invoice_items").delete().neq("id", "none");
+    await supabase.from("invoices").delete().neq("id", "none");
+    await supabase.from("customer_transactions").delete().neq("id", "none");
+    await supabase.from("customers").delete().neq("id", "none");
+    await supabase.from("products").delete().neq("id", "none");
+
+    // Re-seed clean demo data
+    await syncAllProductsToCloud(products);
+    await syncAllCustomersToCloud(customers);
+    for (const inv of invoices) {
+      await syncInvoiceToCloud(inv);
+    }
+    for (const tx of transactions) {
+      await syncTransactionToCloud(tx);
+    }
+    await syncSettingsToCloud(settings);
+    return true;
+  } catch (err) {
+    console.error("Error resetting cloud database:", err);
+    return false;
+  }
+}
