@@ -20,7 +20,7 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
     : "";
 
   return (
-    <div className="bg-white text-slate-900 border border-slate-300 shadow-sm p-8 max-w-4xl mx-auto my-4 text-xs font-sans print:border-none print:shadow-none print:my-0 print:p-0">
+    <div className="bg-white text-slate-900 border border-slate-300 shadow-sm p-6 sm:p-8 w-[760px] md:w-full min-w-[760px] mx-auto my-2 text-xs font-sans print:border-none print:shadow-none print:my-0 print:p-0 a4-print-sheet">
       {/* Title Header */}
       <div className="text-center pb-3 border-b-2 border-slate-900">
         <h1 className="text-xl font-bold tracking-tight uppercase text-slate-950">TAX INVOICE</h1>
@@ -169,9 +169,9 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
 
           {/* Bank & UPI QR Block */}
           <div className="bg-slate-50 border border-slate-200 rounded p-3 flex items-start gap-4">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h4 className="font-bold text-[11px] text-slate-800 uppercase mb-1">Bank & Payment Details</h4>
-              {settings.bankName && <p className="text-slate-700">Bank: <span className="font-semibold">{settings.bankName}</span></p>}
+              {settings.bankName && <p className="text-slate-700 truncate">Bank: <span className="font-semibold">{settings.bankName}</span></p>}
               {settings.bankAccountNo && <p className="text-slate-700">A/C No: <span className="font-semibold font-mono">{settings.bankAccountNo}</span></p>}
               {settings.bankIfsc && <p className="text-slate-700">IFSC: <span className="font-semibold font-mono">{settings.bankIfsc}</span></p>}
               {settings.upiId && (
@@ -182,7 +182,7 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
             </div>
 
             {upiPayload && (
-              <div className="text-center">
+              <div className="text-center shrink-0">
                 <QrCode value={upiPayload} size={84} />
                 <span className="text-[9px] text-slate-500 font-medium block mt-1">Scan to Pay via UPI</span>
               </div>
@@ -276,15 +276,15 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
       </div>
 
       {/* Developer Colophon / Attribution */}
-      <div className="pt-4 text-center text-[9px] text-slate-400 font-medium">
-        Billing System Architecture &amp; Design by{" "}
+      <div className="pt-4 text-center text-[10px] text-slate-400 font-medium">
+        Billing Software Architecture by{" "}
         <a
           href="https://www.shunya-labs.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-slate-500 hover:text-teal-700 underline"
+          className="font-semibold text-slate-600 hover:text-teal-700 transition"
         >
-          Shunya Labs (www.shunya-labs.com)
+          Shunya Labs
         </a>
       </div>
     </div>

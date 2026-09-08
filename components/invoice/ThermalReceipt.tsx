@@ -124,7 +124,7 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({ invoice, setting
 
       <div className="pt-2 text-center text-[9px] space-y-1">
         <p className="font-semibold">{settings.footerMessage}</p>
-        <p className="text-[8px] text-slate-500">Computer Generated Receipt • Powered by Shunya Labs (www.shunya-labs.com)</p>
+        <p className="text-[8px] text-slate-500 font-medium">Computer Generated Receipt • Powered by Shunya Labs</p>
       </div>
     </div>
   );

@@ -16,7 +16,7 @@ import {
   Lock,
   RefreshCw 
 } from "lucide-react";
-import { getStoredProducts, getStoredSettings, syncAllWithCloud } from "@/lib/storage";
+import { getStoredProducts, getStoredSettings, syncAllWithCloud, subscribeToCloudRealtime } from "@/lib/storage";
 import { useSecurity } from "./SecurityGuard";
 
 export const Navbar: React.FC = () => {
@@ -52,6 +52,9 @@ export const Navbar: React.FC = () => {
     // Trigger sync on initial load
     triggerSync();
 
+    // ⚡ Activate Supabase Realtime WebSocket for instantaneous cross-device sync
+    const unsubscribeRealtime = subscribeToCloudRealtime();
+
     // Re-sync whenever user focuses window or wakes up phone screen
     const onFocus = () => triggerSync();
     const onVisibilityChange = () => {
@@ -69,7 +72,12 @@ export const Navbar: React.FC = () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("billing_cloud_synced", onCloudSynced);
+      unsubscribeRealtime();
     };
+  }, []);
+
+  useEffect(() => {
+    refreshLocalState();
   }, [pathname]);
 
   const navItems = [

@@ -534,3 +534,47 @@ export async function syncAllWithCloud(): Promise<boolean> {
   }
 }
 
+import { supabase } from "./supabaseClient";
+
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+/**
+ * Connects to Supabase Realtime WebSocket to listen for changes
+ * across all tables. Whenever ANY device completes a checkout, updates stock,
+ * or adds a customer, this instantly triggers syncAllWithCloud() on all connected devices
+ * without requiring the user to refresh the page.
+ */
+export function subscribeToCloudRealtime(): () => void {
+  if (typeof window === "undefined" || !supabase) return () => {};
+  if (realtimeChannel) return () => {};
+
+  try {
+    realtimeChannel = supabase
+      .channel("public-db-realtime-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public" },
+        (payload) => {
+          console.log("⚡ Instant cloud change received via WebSocket:", payload.table, payload.eventType);
+          syncAllWithCloud();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("🟢 Supabase Realtime WebSocket connected. Instant live sync active.");
+        }
+      });
+
+    return () => {
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+    };
+  } catch (err) {
+    console.warn("Failed to subscribe to Realtime:", err);
+    return () => {};
+  }
+}
+
+

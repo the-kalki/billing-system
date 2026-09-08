@@ -197,9 +197,20 @@ export default function InvoiceDetailPage() {
       {/* Invoice Document Canvas */}
       <div className="max-w-4xl mx-auto">
         {viewFormat === "a4" ? (
-          <A4TaxInvoice invoice={invoice} settings={settings} />
+          <div className="overflow-x-auto pb-6 -mx-2 px-2 sm:mx-0 sm:px-0">
+            <div className="sm:hidden mb-2 text-center no-print">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-slate-200 text-slate-700">
+                📄 Full A4 Tax Invoice (Pan horizontally or Print)
+              </span>
+            </div>
+            <div className="w-fit mx-auto min-w-[760px] md:min-w-0 md:w-full">
+              <A4TaxInvoice invoice={invoice} settings={settings} />
+            </div>
+          </div>
         ) : (
-          <ThermalReceipt invoice={invoice} settings={settings} />
+          <div className="pb-6">
+            <ThermalReceipt invoice={invoice} settings={settings} />
+          </div>
         )}
       </div>
     </div>

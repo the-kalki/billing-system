@@ -21,6 +21,8 @@ body {
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .no-print {
@@ -33,7 +35,16 @@ body {
 
   @page {
     margin: 8mm;
-    size: auto;
+    size: A4 portrait;
+  }
+
+  .a4-print-sheet {
+    width: 100% !important;
+    min-width: 750px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 }
 
@@ -42,3 +53,4 @@ body {
     display: none !important;
   }
 }
+
