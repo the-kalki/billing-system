@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
+import { SecurityGuard } from "@/components/SecurityGuard";
 
 export const metadata: Metadata = {
   title: "BharatPOS - Fast Billing & Invoicing System",
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased min-h-screen flex flex-col bg-slate-100 text-slate-900">
-        <Navbar />
-        <main className="flex-1 flex flex-col">{children}</main>
+        <SecurityGuard>
+          <Navbar />
+          <main className="flex-1 flex flex-col">{children}</main>
+        </SecurityGuard>
       </body>
     </html>
   );

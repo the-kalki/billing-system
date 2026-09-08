@@ -113,6 +113,8 @@ function mapSettingsToDB(s: BusinessSettings) {
     gst_mode: s.gstMode,
     terms: s.terms || null,
     footer_message: s.footerMessage || null,
+    security_pin: s.securityPin || "1234",
+    is_lock_enabled: s.isLockEnabled !== false,
   };
 }
 
@@ -136,6 +138,8 @@ function mapSettingsFromDB(row: any): BusinessSettings {
     gstMode: (row.gst_mode as "exclusive" | "inclusive") || "exclusive",
     terms: row.terms || "",
     footerMessage: row.footer_message || "",
+    securityPin: row.security_pin || "1234",
+    isLockEnabled: row.is_lock_enabled !== false,
   };
 }
 

@@ -27,7 +27,9 @@ import {
   Download, 
   QrCode as QrIcon,
   Cloud,
-  RefreshCw 
+  RefreshCw,
+  Lock,
+  ShieldCheck 
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -384,6 +386,64 @@ export default function SettingsPage() {
               onChange={(e) => setSettings({ ...settings, footerMessage: e.target.value })}
               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
             />
+          </div>
+        </div>
+
+        {/* Section 4: Terminal Security & Store PIN */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div className="flex items-center gap-2 text-slate-900 font-bold">
+              <Lock className="w-5 h-5 text-teal-600" />
+              <h3>Terminal Security & Store PIN</h3>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.isLockEnabled !== false}
+                onChange={(e) => setSettings({ ...settings, isLockEnabled: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+              <span className="ml-2 text-xs font-semibold text-slate-700">
+                {settings.isLockEnabled !== false ? "Lock Enabled" : "Disabled"}
+              </span>
+            </label>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            When enabled, the POS terminal and settings lock automatically upon opening or clicking &quot;Lock&quot;. Staff must enter the 4-digit PIN to access billing.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                4-Digit Security PIN <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                maxLength={4}
+                pattern="[0-9]{4}"
+                placeholder="1234"
+                value={settings.securityPin || "1234"}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setSettings({ ...settings, securityPin: val });
+                }}
+                className="w-full px-3 py-2 text-lg font-mono font-bold tracking-widest border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              />
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Must be 4 digits (e.g. 1234)
+              </span>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs text-slate-600 space-y-1">
+              <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-teal-600" />
+                Quick Counter Lock:
+              </span>
+              <p>
+                Click the <strong>Lock</strong> icon in the top navigation bar at any time to instantly lock the terminal when stepping away from the cash counter.
+              </p>
+            </div>
           </div>
         </div>
 

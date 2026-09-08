@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS: BusinessSettings = {
   gstMode: "exclusive", // As selected by client
   terms: "1. Goods once sold will not be exchanged without invoice.\n2. Interest @18% p.a. will be charged if bill is not paid within 15 days.\n3. Subject to local jurisdiction only.",
   footerMessage: "Thank You for Shopping with Us! Visit Again.",
+  securityPin: "1234",
+  isLockEnabled: true,
 };
 
 export const INITIAL_PRODUCTS: Product[] = [

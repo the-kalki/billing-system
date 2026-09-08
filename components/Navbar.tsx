@@ -12,12 +12,15 @@ import {
   Settings, 
   Store, 
   AlertTriangle,
-  Cloud 
+  Cloud,
+  Lock 
 } from "lucide-react";
 import { getStoredProducts, getStoredSettings, syncAllWithCloud } from "@/lib/storage";
+import { useSecurity } from "./SecurityGuard";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
+  const { lockApp, settings: secSettings } = useSecurity();
   const [lowStockCount, setLowStockCount] = useState(0);
   const [storeName, setStoreName] = useState("Billing POS");
   const [isCloudSynced, setIsCloudSynced] = useState(false);
@@ -103,6 +106,18 @@ export const Navbar: React.FC = () => {
                 </Link>
               );
             })}
+
+            {secSettings?.isLockEnabled !== false && (
+              <button
+                type="button"
+                onClick={lockApp}
+                className="flex items-center space-x-1.5 px-2.5 py-2 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition ml-1 border border-slate-700/50"
+                title="Lock POS Terminal"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span className="hidden lg:inline">Lock</span>
+              </button>
+            )}
           </nav>
         </div>
       </div>

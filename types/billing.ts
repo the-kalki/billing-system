@@ -105,4 +105,6 @@ export interface BusinessSettings {
   gstMode: 'exclusive' | 'inclusive'; // Client selected 'exclusive'
   terms: string;
   footerMessage: string;
+  securityPin?: string; // 4-digit store PIN (default: "1234")
+  isLockEnabled?: boolean; // default true
 }
