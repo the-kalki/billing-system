@@ -29,7 +29,8 @@ import {
   Cloud,
   RefreshCw,
   Lock,
-  ShieldCheck 
+  ShieldCheck,
+  Sparkles
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -445,6 +446,27 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* System Information & Agency Attribution Card */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 text-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-700/50 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-teal-400" />
+                <h3 className="text-xs font-bold tracking-wider uppercase text-teal-400">
+                  Software Architecture & Craft
+                </h3>
+              </div>
+              <p className="text-base font-bold text-white mt-1">Designed & Engineered by Shunya Labs</p>
+            </div>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-teal-500/20 text-teal-300 border border-teal-500/30 w-fit">
+              Cloud POS v1.2 • Mumbai Edge (Supabase)
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            BharatPOS is custom-tailored for retail counters by <strong>Shunya Labs</strong>. Features zero-lag offline caching, cross-device multi-terminal sync, thermal billing engine, and GST compliance.
+          </p>
         </div>
 
         {/* Submit */}

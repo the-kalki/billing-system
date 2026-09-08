@@ -22,11 +22,18 @@ import {
   getStoredInvoices,
   getStoredTransactions
 } from "@/lib/storage";
+import { 
+  fetchProductsFromCloud, 
+  syncInvoiceToCloud, 
+  syncAllProductsToCloud, 
+  syncSettingsToCloud 
+} from "@/lib/supabaseSync";
 import { calculateItemAmounts, calculateInvoiceTotals } from "@/lib/calculations";
 import { ProductPicker } from "@/components/pos/ProductPicker";
 import { PosCart } from "@/components/pos/PosCart";
 import { CustomerSelectModal } from "@/components/pos/CustomerSelectModal";
 import { PaymentModal } from "@/components/pos/PaymentModal";
+import { ShoppingCart } from "lucide-react";
 
 export default function PosPage() {
   const router = useRouter();
@@ -41,10 +48,28 @@ export default function PosPage() {
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
+  // Mobile / Tablet Tab Switcher ('products' or 'cart')
+  const [mobileTab, setMobileTab] = useState<"products" | "cart">("products");
+
   useEffect(() => {
     setProducts(getStoredProducts());
     setCustomers(getStoredCustomers());
     setSettings(getStoredSettings());
+
+    // Fetch fresh live products from Supabase
+    fetchProductsFromCloud().then((fresh) => {
+      if (fresh && fresh.length > 0) {
+        setProducts(fresh);
+      }
+    });
+
+    // Listen for cloud sync broadcasts
+    const onSync = (e: any) => {
+      if (e.detail?.products) setProducts(e.detail.products);
+      if (e.detail?.customers) setCustomers(e.detail.customers);
+      if (e.detail?.settings) setSettings(e.detail.settings);
+    };
+    window.addEventListener("billing_cloud_synced", onSync);
 
     // Restore any existing cart from session storage if available
     const savedCart = sessionStorage.getItem("pos_cart");
@@ -55,6 +80,8 @@ export default function PosPage() {
         console.error("Failed to restore cart", e);
       }
     }
+
+    return () => window.removeEventListener("billing_cloud_synced", onSync);
   }, []);
 
   // Save cart to session storage on change
@@ -206,7 +233,7 @@ export default function PosPage() {
 
   const totals = calculateInvoiceTotals(cartItems);
 
-  const handleCompleteSale = (
+  const handleCompleteSale = async (
     method: PaymentMethod,
     paidAmount: number,
     notes?: string
@@ -309,6 +336,17 @@ export default function PosPage() {
     setSettings(updatedSettings);
     saveStoredSettings(updatedSettings);
 
+    // Synchronously ensure Cloud DB receives new invoice, stock, and settings before navigation
+    try {
+      await Promise.allSettled([
+        syncInvoiceToCloud(newInvoice),
+        syncAllProductsToCloud(updatedProducts),
+        syncSettingsToCloud(updatedSettings)
+      ]);
+    } catch (e) {
+      console.warn("Cloud push error:", e);
+    }
+
     // 8. Clear Cart & Close Modal
     setCartItems([]);
     sessionStorage.removeItem("pos_cart");
@@ -321,16 +359,57 @@ export default function PosPage() {
   if (!settings) return null;
 
   return (
-    <div className="flex-1 flex flex-col p-3 md:p-4 max-w-[1600px] w-full mx-auto">
-      {/* POS Two-Column Workspace */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[calc(100vh-5.5rem)]">
-        {/* Left Column: Fast Product Catalog / Search (7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col h-[550px] lg:h-auto">
+    <div className="flex-1 flex flex-col p-2 sm:p-4 max-w-[1600px] w-full mx-auto pb-24 md:pb-6">
+      {/* Mobile / Tablet View Switcher (< 1024px) */}
+      <div className="lg:hidden flex items-center p-1 bg-slate-200/90 rounded-xl mb-3 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setMobileTab("products")}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === "products"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <span>📦 Products Catalog</span>
+          <span className="text-[10px] text-slate-400 font-normal">({products.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("cart")}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === "cart"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span>Active Cart</span>
+          {cartItems.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950">
+              {cartItems.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* POS Workspace: Two Columns on Desktop, Single View on Mobile/Tablet */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[calc(100vh-6rem)]">
+        {/* Product Catalog / Search (7 Cols Desktop, conditional on Mobile) */}
+        <div
+          className={`lg:col-span-7 flex flex-col h-[520px] sm:h-[580px] lg:h-auto ${
+            mobileTab === "cart" ? "hidden lg:flex" : "flex"
+          }`}
+        >
           <ProductPicker products={products} onAddToCart={handleAddToCart} />
         </div>
 
-        {/* Right Column: Active Cart & Totals (5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col h-[650px] lg:h-auto">
+        {/* Active Cart & Totals (5 Cols Desktop, conditional on Mobile) */}
+        <div
+          className={`lg:col-span-5 flex flex-col h-[600px] lg:h-auto ${
+            mobileTab === "products" ? "hidden lg:flex" : "flex"
+          }`}
+        >
           <PosCart
             items={cartItems}
             customer={selectedCustomer}
@@ -344,6 +423,28 @@ export default function PosPage() {
           />
         </div>
       </div>
+
+      {/* Floating Action Pill on Mobile (When in Products view and items exist in cart) */}
+      {mobileTab === "products" && cartItems.length > 0 && (
+        <div className="lg:hidden fixed bottom-16 left-3 right-3 z-30">
+          <button
+            type="button"
+            onClick={() => setMobileTab("cart")}
+            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3.5 px-4 rounded-2xl shadow-2xl flex items-center justify-between transition active:scale-98 border border-teal-400/30"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-extrabold text-xs">
+                {cartItems.length}
+              </div>
+              <span className="text-xs sm:text-sm">Items in Cart</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold">
+              <span>₹{totals.grandTotal.toFixed(2)}</span>
+              <span>Checkout →</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Customer Selection / Quick Add Modal */}
       <CustomerSelectModal

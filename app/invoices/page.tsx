@@ -24,7 +24,21 @@ export default function InvoicesPage() {
   const [methodFilter, setMethodFilter] = useState<"all" | "cash" | "upi" | "credit">("all");
 
   useEffect(() => {
-    setInvoices(getStoredInvoices());
+    const load = () => {
+      setInvoices(getStoredInvoices());
+    };
+    load();
+
+    const handleSync = () => load();
+    window.addEventListener("billing_cloud_synced", handleSync);
+    window.addEventListener("focus", handleSync);
+    window.addEventListener("storage", handleSync);
+
+    return () => {
+      window.removeEventListener("billing_cloud_synced", handleSync);
+      window.removeEventListener("focus", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
   }, []);
 
   const filteredInvoices = invoices.filter((inv) => {
@@ -168,8 +182,76 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      {/* Invoices Data Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      {/* Mobile Invoices Cards List (< 640px) */}
+      <div className="block sm:hidden space-y-3">
+        {filteredInvoices.length === 0 ? (
+          <div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-400 text-sm">
+            No invoices found matching your criteria.
+          </div>
+        ) : (
+          filteredInvoices.map((inv) => (
+            <div
+              key={inv.id}
+              className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <Link
+                    href={`/invoices/${inv.id}`}
+                    className="font-bold text-teal-700 font-mono text-sm flex items-center gap-1 hover:underline"
+                  >
+                    <FileText className="w-4 h-4" />
+                    {inv.invoiceNumber}
+                  </Link>
+                  <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(inv.date)}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-base font-extrabold text-slate-950 tabular-nums">
+                    {formatCurrency(inv.grandTotal)}
+                  </div>
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold capitalize mt-0.5 ${
+                      inv.paymentStatus === "paid"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {inv.paymentStatus}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">
+                <div>
+                  <span className="font-semibold text-slate-900 block">{inv.customerName}</span>
+                  <span className="text-[11px] text-slate-500 font-mono">{inv.customerMobile}</span>
+                </div>
+                <div className="text-right">
+                  <span className="uppercase font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-[10px]">
+                    {inv.paymentMethod}
+                  </span>
+                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                    {inv.items.length} {inv.items.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <Link
+                  href={`/invoices/${inv.id}`}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>View / Print Invoice Slip</span>
+                </Link>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Invoices Data Table (>= 640px) */}
+      <div className="hidden sm:block bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-700 text-xs uppercase border-b border-slate-200">

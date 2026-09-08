@@ -274,6 +274,11 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
           <p className="text-[10px] text-slate-500">Authorized Signatory</p>
         </div>
       </div>
+
+      {/* Developer Colophon / Attribution */}
+      <div className="pt-4 text-center text-[9px] text-slate-400 font-medium">
+        Billing System Architecture & Design by Shunya Labs
+      </div>
     </div>
   );
 };

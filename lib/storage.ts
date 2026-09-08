@@ -513,6 +513,20 @@ export async function syncAllWithCloud(): Promise<boolean> {
     if (cloudSettings) {
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify(cloudSettings));
     }
+
+    // Broadcast update event so all open views (POS, Products, Invoices) update immediately
+    window.dispatchEvent(
+      new CustomEvent("billing_cloud_synced", {
+        detail: {
+          products: cloudProducts,
+          customers: cloudCustomers,
+          invoices: cloudInvoices,
+          transactions: cloudTransactions,
+          settings: cloudSettings,
+        },
+      })
+    );
+
     return true;
   } catch (err) {
     console.warn("Error syncing with cloud:", err);
