@@ -136,7 +136,7 @@ function mapSettingsFromDB(row: any): BusinessSettings {
     invoicePrefix: row.invoice_prefix,
     invoiceCounter: Number(row.invoice_counter) || 100,
     gstMode: (row.gst_mode as "exclusive" | "inclusive") || "exclusive",
-    terms: row.terms || "",
+    terms: (row.terms || "").replace(/\\n/g, "\n"),
     footerMessage: row.footer_message || "",
     securityPin: row.security_pin || "1234",
     isLockEnabled: row.is_lock_enabled !== false,

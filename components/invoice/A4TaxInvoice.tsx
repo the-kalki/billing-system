@@ -192,12 +192,19 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
           {/* Terms */}
           {settings.terms && (
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                 Terms & Conditions:
               </span>
-              <p className="text-[10px] text-slate-600 whitespace-pre-line leading-relaxed">
-                {settings.terms}
-              </p>
+              <div className="text-[10px] text-slate-600 leading-relaxed space-y-0.5">
+                {settings.terms
+                  .replace(/\\n/g, "\n")
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter((line) => line.length > 0)
+                  .map((line, idx) => (
+                    <p key={idx}>{line}</p>
+                  ))}
+              </div>
             </div>
           )}
         </div>
