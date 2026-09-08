@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ExternalLink } from "lucide-react";
 
 export const Footer: React.FC = () => {
   return (
@@ -19,9 +19,16 @@ export const Footer: React.FC = () => {
           <span>Engineered &amp; Designed with</span>
           <Sparkles className="w-3.5 h-3.5 text-teal-600 fill-teal-600" />
           <span>by</span>
-          <span className="font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded-md border border-slate-200 transition tracking-tight">
-            Shunya Labs
-          </span>
+          <a
+            href="https://www.shunya-labs.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold text-teal-900 bg-teal-50 hover:bg-teal-100 hover:text-teal-950 px-2 py-0.5 rounded-md border border-teal-200/80 transition tracking-tight inline-flex items-center gap-1 group shadow-2xs"
+            title="Visit Shunya Labs Website"
+          >
+            <span>Shunya Labs</span>
+            <ExternalLink className="w-3 h-3 text-teal-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </a>
         </div>
       </div>
     </footer>

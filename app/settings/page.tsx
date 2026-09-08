@@ -30,7 +30,8 @@ import {
   RefreshCw,
   Lock,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -449,8 +450,8 @@ export default function SettingsPage() {
         </div>
 
         {/* System Information & Agency Attribution Card */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 text-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-700/50 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 text-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-700/50 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-teal-400" />
@@ -458,14 +459,46 @@ export default function SettingsPage() {
                   Software Architecture & Craft
                 </h3>
               </div>
-              <p className="text-base font-bold text-white mt-1">Designed & Engineered by Shunya Labs</p>
+              <p className="text-base font-bold text-white mt-1">
+                Designed &amp; Engineered by{" "}
+                <a
+                  href="https://www.shunya-labs.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-300 hover:text-teal-200 underline underline-offset-4 decoration-teal-400 font-extrabold transition inline-flex items-center gap-1"
+                >
+                  <span>Shunya Labs</span>
+                  <ExternalLink className="w-3.5 h-3.5 inline" />
+                </a>
+              </p>
             </div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-teal-500/20 text-teal-300 border border-teal-500/30 w-fit">
-              Cloud POS v1.2 • Mumbai Edge (Supabase)
-            </span>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href="https://www.shunya-labs.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-sm transition"
+              >
+                <span>Visit Shunya Labs</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-teal-300 border border-teal-500/30">
+                Cloud POS v2.4 • Mumbai Edge
+              </span>
+            </div>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
-            BharatPOS is custom-tailored for retail counters by <strong>Shunya Labs</strong>. Features zero-lag offline caching, cross-device multi-terminal sync, thermal billing engine, and GST compliance.
+            BharatPOS is custom-tailored for retail counters by{" "}
+            <a
+              href="https://www.shunya-labs.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-teal-300 hover:underline"
+            >
+              Shunya Labs (www.shunya-labs.com)
+            </a>
+            . Features zero-lag offline caching, cross-device multi-terminal sync, thermal billing engine, and GST compliance.
           </p>
         </div>
 

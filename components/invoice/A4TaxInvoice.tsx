@@ -277,7 +277,15 @@ export const A4TaxInvoice: React.FC<A4TaxInvoiceProps> = ({ invoice, settings })
 
       {/* Developer Colophon / Attribution */}
       <div className="pt-4 text-center text-[9px] text-slate-400 font-medium">
-        Billing System Architecture & Design by Shunya Labs
+        Billing System Architecture &amp; Design by{" "}
+        <a
+          href="https://www.shunya-labs.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-500 hover:text-teal-700 underline"
+        >
+          Shunya Labs (www.shunya-labs.com)
+        </a>
       </div>
     </div>
   );
